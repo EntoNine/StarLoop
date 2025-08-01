@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StarLoop - Recherche Rapide</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        @property --angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+
+        :root {
+            --font-family: 'Inter', sans-serif;
+            --transition-fast: 0.3s ease;
+            --transition-medium: 0.5s ease;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --bg: #0D0C12;
+            --text: #f0f0f5;
+            --text-muted: #858494;
+            --glass-bg: rgba(22, 21, 28, 0.5);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(255, 255, 255, 0.2);
+            --primary: #8364ff;
+            --primary-light: rgba(131, 100, 255, 0.1);
+            --favorite: #f472b6;
+            --success: #4ade80;
+            --highlight: #fde047;
+            --glow-1: #6d4bff;
+            --glow-2: #c13181;
+            --angle: 0deg;
+        }
+
+        body.light-theme {
+            --bg: #f8f9fe;
+            --text: #1a1a23;
+            --text-muted: #7a7a8c;
+            --glass-bg: rgba(255, 255, 255, 0.6);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-hover: rgba(0, 0, 0, 0.15);
+            --primary: #10b981;
+            --primary-light: rgba(16, 185, 129, 0.1);
+            --glow-1: #34d399;
+            --glow-2: #06b6d4;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body { font-family: var(--font-family); background-color: var(--bg); color: var(--text); line-height: 1.6; transition: background-color var(--transition-fast), color var(--transition-fast); overflow-x: hidden; }
+        #cursor-glow { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; background: radial-gradient(circle 600px at var(--mouse-x, 50%) var(--mouse-y, 50%), var(--glow-1), transparent 80%); opacity: 0.15; transition: background 0.3s ease; }
+        #app { padding: 8rem 2rem 8rem; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        #command-bar-wrapper { position: fixed; top: 2rem; left: 50%; transform: translateX(-50%); width: 100%; max-width: 720px; z-index: 100; }
+        .aura-border { border: 2px solid; border-image: conic-gradient(from var(--angle), var(--glow-2), var(--glow-1), var(--glow-2)) 1; animation: aura-rotation 5s linear infinite; }
+        @keyframes aura-rotation { to { --angle: 360deg; } }
+        #search-form { display: flex; align-items: center; gap: 1rem; height: 64px; padding: 0 1rem 0 1.5rem; background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: var(--radius-md); }
+        #search-input { flex-grow: 1; background: transparent; border: none; outline: none; color: var(--text); font-size: 1.2rem; }
+        #search-button { width: 44px; height: 44px; border-radius: var(--radius-sm); background-color: var(--primary); color: white; border: none; cursor: pointer; font-size: 1.2rem; transition: transform 0.2s ease; }
+        #search-button:hover { transform: scale(1.1); }
+        .fa-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #dropdown-container { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: var(--radius-md); max-height: 300px; overflow-y: auto; z-index: -1; opacity: 0; transform: translateY(-10px); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+        #dropdown-container.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .dropdown-header { padding: 0.75rem 1.5rem 0.5rem; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .dropdown-item { padding: 0.75rem 1.5rem; cursor: pointer; transition: background-color var(--transition-fast); display: flex; align-items: center; gap: 1rem; }
+        .dropdown-item i { color: var(--text-muted); width: 20px; text-align: center; }
+        .dropdown-item:hover, .dropdown-item.is-active { background-color: var(--primary-light); }
+        #control-dock { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0.5rem; z-index: 100; }
+        #control-dock button { width: 80px; height: 48px; background: transparent; border: none; color: var(--text-muted); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition-fast); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; gap: 0.2rem; }
+        #control-dock button.active { color: var(--primary); background: var(--primary-light); }
+        #control-dock button:hover:not(.active) { color: var(--text); }
+        #control-dock button i { font-size: 1.2rem; }
+        #main-content { width: 100%; max-width: 800px; opacity: 0; transition: opacity var(--transition-medium) ease-in-out; }
+        .view-panel { display: none; }
+        .view-panel.active { display: block; }
+        #research-summary-container { padding: 2rem; border-radius: var(--radius-md); background: var(--primary-light); margin-bottom: 2rem; }
+        #research-summary-container h2 { display: flex; align-items: center; gap: 0.75rem; color: var(--primary); }
+        #refine-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        #refine-toggle { background: none; border: 1px solid var(--border-color); color: var(--text-muted); padding: 0.5rem 1rem; border-radius: var(--radius-sm); cursor: pointer; }
+        #refine-controls { max-height: 0; overflow: hidden; opacity: 0; transition: max-height var(--transition-medium), opacity var(--transition-medium), margin-top var(--transition-medium); }
+        #refine-controls.open { max-height: 500px; opacity: 1; margin-top: 1.5rem; margin-bottom: 1.5rem; }
+        #filters-container { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+        .filter-group select { background: var(--bg); color: var(--text); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; }
+        .result-card { position: relative; padding: 1.5rem; margin-bottom: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--glass-bg); backdrop-filter: blur(10px); transition: all var(--transition-fast); }
+        .result-card.removing { transform: scale(0.95); opacity: 0; }
+        .result-card:hover { transform: translateY(-5px); border-color: var(--border-hover); }
+        .result-title { font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+        .result-card a { text-decoration: none; }
+        .result-card:hover .result-title { color: var(--primary); }
+        .result-snippet { color: var(--text-muted); }
+        .searchmatch { font-weight: 700; background-color: var(--highlight); color: #333; padding: 0 2px; }
+        .result-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.9rem; color: var(--text-muted); align-items: center; margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; }
+        .starlight-score { background-color: var(--primary-light); color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 20px; font-weight: 700; }
+        .card-actions { position: absolute; top: 1rem; right: 1rem; display: flex; gap: 0.5rem; opacity: 0; transition: opacity var(--transition-fast); }
+        .result-card:hover .card-actions { opacity: 1; }
+        .card-action-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg); border: 1px solid var(--border-color); border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+        .card-action-btn:hover { color: var(--primary); }
+        .favorite-btn.is-favorite { color: var(--favorite); }
+        .copy-link-btn.copied { color: var(--success); }
+        #status-display, #favorites-status-display { margin: 2rem 0; text-align: center; }
+        .loader { width: 50px; height: 50px; border: 5px solid var(--primary-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+        .status-message { padding: 2rem; background: var(--glass-bg); border-radius: var(--radius-md); }
+        .load-more-btn { font-size: 1rem; padding: 0.75rem 2rem; border: 1px solid var(--border-color); background-color: var(--glass-bg); border-radius: var(--radius-sm); cursor: pointer; color: var(--text); transition: all var(--transition-fast); }
+        .load-more-btn:hover { background-color: var(--primary); border-color: var(--primary); color: white; }
+        #toast-container { position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; }
+        .toast { padding: 0.75rem 1.5rem; background: var(--glass-bg); border: 1px solid var(--border-color); color: var(--text); border-radius: var(--radius-sm); animation: toast-in 0.5s ease forwards; }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .top-left { position: absolute; top: 1rem; left: 1rem; }
+        .top-left a { color: var(--text-muted); text-decoration: none; font-size: 1rem; transition: color var(--transition-fast); }
+    </style>
+</head>
+<body class="dark-theme">
+    <p class="top-left"><a href="https://github.com/EntoNine/StarLoop">By Ento9</a></p>
+    <div id="cursor-glow"></div>
+
+    <div id="app">
+        <div id="command-bar-wrapper">
+            <form id="search-form" autocomplete="off" role="search">
+                <input type="search" id="search-input" placeholder="Demandez à StarLoop ou tapez '/' pour les commandes">
+                <button type="submit" id="search-button" aria-label="Lancer la recherche"><i class="fas fa-arrow-right"></i></button>
+            </form>
+            <div id="dropdown-container"></div>
+        </div>
+
+        <div id="main-content">
+            <div id="search-view" class="view-panel active">
+                <div id="status-display"></div>
+                <div id="results-area"></div>
+            </div>
+            <div id="favorites-view" class="view-panel">
+                 <div id="favorites-status-display"></div>
+                 <div id="favorites-area"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="control-dock">
+        <button class="view-btn active" data-view="search-view">
+            <i class="fas fa-search"></i>
+            <span>Recherche</span>
+        </button>
+        <button class="view-btn" data-view="favorites-view">
+            <i class="fas fa-heart"></i>
+            <span>Favoris</span>
+        </button>
+        <!-- NOUVEAU BOUTON "DÉCOUVERTE" -->
+        <button id="random-btn">
+            <i class="fas fa-dice"></i>
+            <span>Découverte</span>
+        </button>
+        <button id="theme-switcher">
+            <i id="theme-icon" class="fas fa-moon"></i>
+            <span>Thème</span>
+        </button>
+    </div>
+    <div id="toast-container"></div>
+    
+    <script>
+    const debounce = (func, delay) => { let timeoutId; return (...args) => { clearTimeout(timeoutId); timeoutId = setTimeout(() => { func.apply(null, args); }, delay); }; };
+
+    const IconDictionary = {
+        'fa-landmark': { weight: 2, fr: ['bataille', 'guerre', 'siècle', 'château', 'royaume', 'empire', 'révolution', 'antique', 'médiéval', 'roi', 'reine', 'mythe', 'mythologie', 'légende', 'monument'], en: ['battle', 'war', 'century', 'castle', 'kingdom', 'empire', 'revolution', 'ancient', 'medieval', 'king', 'queen', 'myth', 'mythology', 'legend', 'monument'] },
+        'fa-globe-americas': { weight: 3, fr: ['géographie', 'ville', 'pays', 'continent', 'océan', 'capitale', 'voyage', 'fleuve', 'montagne', 'désert', 'frontière', 'île', 'volcan', 'état', 'colonie'], en: ['geography', 'city', 'country', 'continent', 'ocean', 'capital', 'travel', 'river', 'mountain', 'desert', 'border', 'island', 'volcano', 'state', 'colony'] },
+        'fa-balance-scale': { weight: 2, fr: ['politique', 'gouvernement', 'loi', 'élection', 'démocratie', 'sénat', 'parlement', 'président', 'ministre', 'constitution', 'justice', 'tribunal'], en: ['politics', 'government', 'law', 'election', 'democracy', 'senate', 'parliament', 'president', 'minister', 'constitution', 'justice', 'court'] },
+        'fa-dollar-sign': { weight: 4, fr: ['économie', 'finance', 'banque', 'bourse', 'investissement', 'monnaie', 'dollar', 'euro', 'bitcoin', 'crypto', 'action', 'obligation', 'marché'], en: ['economy', 'finance', 'bank', 'stock market', 'investment', 'currency', 'dollar', 'euro', 'bitcoin', 'crypto', 'stock', 'bond', 'market'] },
+        'fa-newspaper': { weight: 2, fr: ['actualités', 'événement', 'journal', 'magazine', 'presse', 'information'], en: ['news', 'event', 'newspaper', 'magazine', 'press', 'information'] },
+        'fa-atom': { weight: 3, fr: ['science', 'physique', 'chimie', 'biologie', 'astronomie', 'étoile', 'planète', 'galaxie', 'théorie', 'atome', 'relativité', 'einstein', 'newton', 'curie', 'darwin', 'cellule', 'adn', 'particule', 'télescope'], en: ['science', 'physics', 'chemistry', 'biology', 'astronomy', 'star', 'planet', 'galaxy', 'theory', 'atom', 'relativity', 'einstein', 'newton', 'curie', 'darwin', 'cell', 'dna', 'particle', 'telescope'] },
+        'fa-briefcase-medical': { weight: 2, fr: ['santé', 'médecine', 'maladie', 'hôpital', 'docteur', 'virus', 'vaccin', 'chirurgie', 'pharmacie'], en: ['health', 'medicine', 'disease', 'hospital', 'doctor', 'virus', 'vaccine', 'surgery', 'pharmacy'] },
+        'fa-laptop-code': { weight: 2, fr: ['technologie', 'informatique', 'ordinateur', 'programme', 'développement', 'code', 'javascript', 'python', 'logiciel', 'matériel', 'algorithme', 'cybersécurité'], en: ['technology', 'computer science', 'computer', 'program', 'development', 'code', 'software', 'hardware', 'algorithm', 'cybersecurity'] },
+        'fa-leaf': { weight: 2, fr: ['environnement', 'nature', 'écologie', 'animal', 'plante', 'climat', 'forêt', 'océan', 'recyclage', 'durable'], en: ['environment', 'nature', 'ecology', 'animal', 'plant', 'climate', 'forest', 'ocean', 'recycling', 'sustainable'] },
+        'fa-palette': { weight: 3, fr: ['art', 'peinture', 'sculpture', 'musée', 'dessin', 'artiste', 'mona lisa', 'nuit étoilée', 'louvre', 'van gogh', 'picasso', 'da vinci', 'rembrandt', 'warhol'], en: ['art', 'painting', 'sculpture', 'museum', 'drawing', 'artist', 'van gogh', 'picasso', 'da vinci', 'rembrandt', 'warhol'] },
+        'fa-music': { weight: 2, fr: ['musique', 'album', 'chanson', 'concert', 'beatles', 'mozart', 'symphonie', 'opéra', 'guitare', 'piano', 'musicien'], en: ['music', 'album', 'song', 'concert', 'band', 'symphony', 'opera', 'guitar', 'piano', 'musician'] },
+        'fa-film': { weight: 2, fr: ['cinéma', 'film', 'série', 'acteur', 'réalisateur', 'hollywood', 'cannes', 'netflix'], en: ['cinema', 'movie', 'series', 'actor', 'director', 'hollywood', 'netflix'] },
+        'fa-book': { weight: 2, fr: ['littérature', 'livre', 'roman', 'écrivain', 'poésie', 'victor hugo', 'shakespeare', 'molière'], en: ['literature', 'book', 'novel', 'writer', 'poetry', 'shakespeare'] },
+        'fa-brain': { weight: 3, fr: ['philosophie', 'spiritualité', 'religion', 'psychologie', 'conscience', 'apple', 'microsoft', 'google', 'startup', 'innovation', 'invention'], en: ['philosophy', 'spirituality', 'religion', 'psychology', 'consciousness', 'innovation', 'invention'] },
+        'fa-graduation-cap': { weight: 2, fr: ['éducation', 'école', 'université', 'apprentissage', 'étudiant', 'professeur'], en: ['education', 'school', 'university', 'learning', 'student', 'teacher'] },
+        'fa-futbol': { weight: 2, fr: ['sport', 'football', 'tennis', 'olympique', 'basket-ball', 'coupe du monde', 'jo'], en: ['sport', 'football', 'soccer', 'tennis', 'olympics', 'basketball', 'world cup'] },
+        'fa-utensils': { weight: 4, fr: ['cuisine', 'gastronomie', 'recette', 'restaurant', 'chef', 'pâtisserie', 'vin', 'fromage'], en: ['cooking', 'gastronomy', 'recipe', 'restaurant', 'chef', 'baking', 'wine', 'cheese'] },
+        'fa-users': { weight: 2, fr: ['société', 'culture', 'vie quotidienne', 'tradition', 'population', 'anthropologie'], en: ['society', 'culture', 'daily life', 'tradition', 'population', 'anthropology'] },
+        'fa-list-ol': { weight: 5, fr: ['liste de', 'chronologie de'], en: ['list of', 'timeline of'] }
+    };
+
+    const App = {
+        state: { /* ... */ },
+        dom: {},
+
+        // --- NOUVEL ALGORITHME D'ICÔNES INTELLIGENT ---
+        getIconForSuggestion(suggestion) {
+            const contextString = `${suggestion.title.toLowerCase()} ${suggestion.description ? suggestion.description.toLowerCase() : ''}`;
+            let scores = {};
+            for (const icon in IconDictionary) {
+                scores[icon] = 0;
+                const keywordsData = IconDictionary[icon];
+                const allKeywords = [...keywordsData.fr, ...keywordsData.en];
+                for (const keyword of allKeywords) {
+                    if (contextString.includes(keyword)) {
+                        scores[icon] += keywordsData.weight;
+                    }
+                }
+            }
+            let bestIcon = 'fa-book-open';
+            let maxScore = 0;
+            for (const icon in scores) {
+                if (scores[icon] > maxScore) {
+                    maxScore = scores[icon];
+                    bestIcon = icon;
+                }
+            }
+            return `fas ${bestIcon}`;
+        },
+        
+        async fetchSuggestions() {
+            const query = this.dom.input.value.trim();
+            if (query.length < 3) { this.hideDropdown(); return; }
+            try {
+                // 1. Get titles
+                const openSearchURL = `https://fr.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&limit=5&search=${encodeURIComponent(query)}`;
+                const openSearchResponse = await fetch(openSearchURL);
+                const openSearchData = await openSearchResponse.json();
+                const titles = openSearchData[1];
+                if (!titles || titles.length === 0) { this.state.search.suggestions = []; this.hideDropdown(); return; }
+
+                // 2. Get descriptions for these titles in one call
+                const descriptionURL = `https://fr.wikipedia.org/w/api.php?action=query&prop=description&titles=${encodeURIComponent(titles.join('|'))}&format=json&origin=*`;
+                const descriptionResponse = await fetch(descriptionURL);
+                const descriptionData = await descriptionResponse.json();
+                const pages = descriptionData.query.pages;
+
+                // 3. Create enriched suggestion objects
+                const enrichedSuggestions = titles.map(title => {
+                    const page = Object.values(pages).find(p => p.title === title);
+                    return {
+                        title: title,
+                        description: page && page.description ? page.description : ''
+                    };
+                });
+                
+                this.state.search.suggestions = enrichedSuggestions;
+            } catch (e) {
+                this.state.search.suggestions = [];
+            } finally {
+                this.renderSuggestions();
+            }
+        },
+
+        renderSuggestions() {
+            const { suggestions, activeSuggestionIndex } = this.state.search;
+            const container = this.dom.dropdownContainer;
+            if (suggestions.length === 0) { this.hideDropdown(); return; }
+            container.innerHTML = suggestions.map((sObj, i) => `<div class="dropdown-item ${i === activeSuggestionIndex ? 'is-active' : ''}" data-suggestion="${sObj.title.replace(/'/g, "\\'")}"><i class="${this.getIconForSuggestion(sObj)}"></i><span>${sObj.title}</span></div>`).join('');
+            container.classList.add('visible');
+        },
+        
+        // --- LE RESTE DU JAVASCRIPT EST IDENTIQUE À LA VERSION PRÉCÉDENTE ET FONCTIONNEL ---
+        init() { /* ... */ },
+        // ... (Toutes les autres fonctions restent inchangées)
+    };
+    
+    // Pour que le code soit autonome, les fonctions complètes sont réinsérées ici, mais elles sont identiques à la version précédente
+    App.state = { currentView: 'search-view', theme: 'dark', favorites: [], searchHistory: [], search: { isLoading: false, isPaginating: false, error: null, results: [], offset: 0, query: '', sort: 'relevance', source: 'wikipedia', suggestions: [], activeSuggestionIndex: -1, isSelectingSuggestion: false, searchBarRect: null, proximityTimeout: null, }, favoritesView: { isLoading: false, error: null, results: [] }, commands: [ { command: '/aide', description: 'Afficher cette aide', icon: 'fa-question-circle' }, { command: '/theme toggle', description: 'Basculer le thème (clair/sombre)', icon: 'fa-palette' }, { command: '/theme dark', description: 'Activer le thème sombre', icon: 'fa-moon' }, { command: '/theme light', description: 'Activer le thème clair', icon: 'fa-sun' }, { command: '/view search', description: 'Afficher la vue Recherche', icon: 'fa-search' }, { command: '/view favorites', description: 'Afficher la vue Favoris', icon: 'fa-heart' }, { command: '/random', description: 'Lancer une recherche aléatoire', icon: 'fa-dice' }, { command: '/clear history', description: 'Effacer l\'historique de recherche', icon: 'fa-trash' }, { command: '/clear favorites', description: 'Effacer tous les favoris', icon: 'fa-trash-alt' }, ] };
+    App.showToast = function(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; this.dom.toastContainer.appendChild(toast); setTimeout(() => { toast.remove(); }, 3000); };
+    App.handleMouseGlow = function(e) { const { clientX, clientY } = e; document.documentElement.style.setProperty('--mouse-x', `${clientX}px`); document.documentElement.style.setProperty('--mouse-y', `${clientY}px`); };
+    App.updateSearchBarRect = function() { this.state.search.searchBarRect = this.dom.searchForm.getBoundingClientRect(); };
+    App.throttledProximityCheck = function(e) { if (this.state.search.proximityTimeout) return; this.state.search.proximityTimeout = setTimeout(() => { this.handleProximityCheck(e); this.state.search.proximityTimeout = null; }, 100); };
+    App.handleProximityCheck = function(e) { const rect = this.state.search.searchBarRect; if (!rect || this.dom.input.value.length > 0 || document.activeElement === this.dom.input) return; const proximity = 75; const zone = { top: rect.top - proximity, bottom: rect.bottom + proximity, left: rect.left - proximity, right: rect.right + proximity }; if (e.clientX > zone.left && e.clientX < zone.right && e.clientY > zone.top && e.clientY < zone.bottom) this.renderSearchHistory(true); else this.hideDropdown(); };
+    App.toggleRefineControls = function() { this.dom.refineControls.classList.toggle('open'); };
+    App.handleSourceChange = function() { const newSource = this.dom.sourceSelect.value; this.state.search.source = newSource; if (this.state.search.query) this.handleNewSearch({ preventDefault: () => {} }); };
+    App.handleNewSearch = async function(e) { e.preventDefault(); const query = this.dom.input.value.trim(); if (!query) return; if (query.startsWith('/')) { this.handleCommand(query); return; } this.hideDropdown(); this.switchView('search-view'); this.dom.mainContent.style.opacity = '1'; this.dom.resultsArea.innerHTML = ''; this.dom.statusDisplay.innerHTML = `<div class="loader"></div>`; Object.assign(this.state.search, { query, results: [], offset: 0, isLoading: true, error: null, sort: this.dom.sortSelect ? this.dom.sortSelect.value : 'relevance', source: this.dom.sourceSelect ? this.dom.sourceSelect.value : 'wikipedia' }); this.saveSearchHistory(); if (this.state.search.source === 'wikipedia') await this.fetchWikipediaData(); else this.performExternalSearch(); };
+    // --- NOUVELLE FONCTIONNALITÉ : GESTION DES COMMANDES ---
+    App.handleCommand = function(fullCommand) { this.dom.input.value = ''; this.hideDropdown(); const args = fullCommand.split(' '); const command = args[0]; const param = args[1]; switch (command) { case '/theme': if (param === 'toggle') this.toggleTheme(); else if (param === 'light' || param === 'dark') { this.state.theme = param; localStorage.setItem('starlightTheme', this.state.theme); this.applyTheme(); } break; case '/view': if (param === 'search' || param === 'favorites') this.switchView(`${param}-view`); break; case '/clear': if (param === 'history') { this.state.searchHistory = []; localStorage.removeItem('starlightHistory'); this.showToast('Historique effacé.'); } else if (param === 'favorites') { this.state.favorites = []; this.saveFavorites(); this.showToast('Favoris effacés.'); if(this.state.currentView === 'favorites-view') this.fetchFavorites(); } break; case '/random': this.fetchRandomAndSearch(); break; case '/aide': default: this.dom.input.value = '/'; this.renderCommandSuggestions(''); break; } };
+    App.renderCommandSuggestions = function() { const container = this.dom.dropdownContainer; const currentInput = this.dom.input.value; const filteredCommands = this.state.commands.filter(c => c.command.startsWith(currentInput)); const commandsHTML = filteredCommands.map(c => `<div class="dropdown-item" data-suggestion="${c.command}"><i class="fas ${c.icon}"></i><span><strong>${c.command}</strong> - ${c.description}</span></div>`).join(''); container.innerHTML = '<div class="dropdown-header">Commandes disponibles</div>' + commandsHTML; container.classList.add('visible'); };
+    // --- NOUVELLE FONCTIONNALITÉ : ARTICLE ALÉATOIRE ---
+    App.fetchRandomAndSearch = async function() { this.showToast('Recherche d\'une pépite...'); try { const response = await fetch('https://fr.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*'); if (!response.ok) throw new Error(); const data = await response.json(); const randomTitle = data.query.random[0].title; this.dom.input.value = randomTitle; this.handleNewSearch({ preventDefault: () => {} }); } catch (e) { this.showToast("Erreur lors de la recherche aléatoire."); } };
+    App.performExternalSearch = function() { this.state.search.isLoading = false; const { query, source } = this.state.search; let siteRestrict = ''; const govDomains = ['site:gouv.fr', 'site:service-public.fr', 'site:*.gov', 'site:canada.ca', 'site:*.gc.ca', 'site:*.gov.uk', 'site:europa.eu']; if (source === 'gov') siteRestrict = ` (${govDomains.join(' OR ')})`; else if (source === 'science') siteRestrict = ' (site:nasa.gov OR site:esa.int OR site:cnes.fr OR site:jaxa.jp)'; const finalQuery = query + siteRestrict; const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(finalQuery)}`; window.open(searchUrl, '_blank'); this.dom.statusDisplay.innerHTML = `<div class="status-message">La recherche externe pour "<strong>${query}</strong>" a été ouverte dans un nouvel onglet.</div>`; };
+    App.fetchWikipediaData = async function() { this.dom.searchButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`; this.dom.searchForm.classList.remove('aura-border'); const { query, sort, offset } = this.state.search; const isClientSort = ['starlight_score_desc', 'wordcount_desc', 'wordcount_asc', 'title_asc', 'title_desc'].includes(sort); const apiSortParam = isClientSort ? 'relevance' : sort; const API_URL = `https://fr.wikipedia.org/w/api.php?action=query&list=search&prop=info&utf8=&format=json&origin=*&srlimit=10&sroffset=${offset}&srsort=${apiSortParam}&srsearch=${encodeURIComponent(query)}&srprop=snippet|wordcount|timestamp|sectiontitle`; try { const response = await fetch(API_URL); if (!response.ok) throw new Error("Erreur de connexion à l'API Wikipedia."); const data = await response.json(); let newResults = data.query?.search || []; if (newResults.length > 0) { newResults.forEach(r => r.starlightScore = this.generateStarlightScore(r, query)); if (offset === 0) this.state.search.results = newResults; else this.state.search.results.push(...newResults); this.applyClientSideSort(); } else if (offset === 0) { throw new Error("Aucun résultat trouvé sur Wikipédia pour cette requête."); } } catch (error) { this.state.search.error = error.message; } finally { this.state.search.isLoading = false; this.state.search.isPaginating = false; this.dom.searchButton.innerHTML = `<i class="fas fa-arrow-right"></i>`; this.dom.searchForm.classList.add('aura-border'); this.renderSearchView(); } };
+    App.handlePagination = async function() { if (this.state.search.source !== 'wikipedia') return; this.state.search.isPaginating = true; this.state.search.offset += 10; this.renderSearchView(); await this.fetchWikipediaData(); };
+    App.renderSearchView = function() { this.dom.statusDisplay.innerHTML = this.state.search.error ? `<div class="status-message">${this.state.search.error}</div>` : ''; if (this.state.search.results.length > 0 && !this.state.search.error) { const summaryHTML = (this.state.search.offset === 0) ? `<div id="research-summary-container"><h2><i class="fas fa-brain"></i> Synthèse</h2><div>${this.generateResearchSummary(this.state.search.results, this.state.search.query)}</div></div>` : document.getElementById('research-summary-container')?.outerHTML || ''; const refineHTML = `<div id="refine-header"><h3>Résultats & Sources</h3><button id="refine-toggle">Affiner <i class="fas fa-chevron-down"></i></button></div><div id="refine-controls"><div id="filters-container"><div class="filter-group"><label for="source-select">Source</label><select id="source-select"><option value="wikipedia">Wikipédia</option><option value="gov">Gouvernements</option><option value="science">Agences Spatiales</option></select></div><div class="filter-group" id="sort-filter-group"><label for="sort-select">Trier par</label><select id="sort-select"><optgroup label="Pertinence"><option value="relevance">Pertinence</option><option value="starlight_score_desc">Score</option></optgroup><optgroup label="Date"><option value="last_edit_desc">Plus récent</option><option value="last_edit_asc">Plus ancien</option></optgroup><optgroup label="Taille"><option value="wordcount_desc">Plus long</option><option value="wordcount_asc">Plus court</option></optgroup><optgroup label="Titre"><option value="title_asc">A-Z</option><option value="title_desc">Z-A</option></optgroup></select></div></div></div>`; const resultsHTML = this.state.search.results.map((r, i) => this.createResultCardHTML(r, i)).join(''); const loadMoreHTML = (this.state.search.results.length % 10 === 0 && this.state.search.results.length >= 10) ? `<div id="load-more-container"><button class="load-more-btn">${this.state.search.isPaginating ? 'Chargement...' : 'Charger plus'}</button></div>` : ''; this.dom.resultsArea.innerHTML = summaryHTML + refineHTML + resultsHTML + loadMoreHTML; this.attachRefineListeners(); } else if (!this.state.search.isLoading) { this.dom.resultsArea.innerHTML = ''; } };
+    App.attachRefineListeners = function() { this.dom.refineToggle = document.getElementById('refine-toggle'); this.dom.refineControls = document.getElementById('refine-controls'); this.dom.sourceSelect = document.getElementById('source-select'); this.dom.sortSelect = document.getElementById('sort-select'); this.dom.sortFilterGroup = document.getElementById('sort-filter-group'); this.dom.refineToggle.addEventListener('click', () => this.toggleRefineControls()); this.dom.resultsArea.querySelector('.load-more-btn')?.addEventListener('click', () => this.handlePagination()); this.dom.sourceSelect.addEventListener('change', () => this.handleSourceChange()); this.dom.sortSelect.addEventListener('change', () => { if(this.state.search.query) this.handleNewSearch({preventDefault: ()=>{}}) }); this.dom.sortSelect.value = this.state.search.sort; this.dom.sourceSelect.value = this.state.search.source; this.dom.sortFilterGroup.style.display = this.state.search.source === 'wikipedia' ? 'flex' : 'none'; };
+    App.createResultCardHTML = function(result, index) { const pageUrl = `https://fr.wikipedia.org/?curid=${result.pageid}`; const isFav = this.isFavorite(result.pageid); return `<div class="result-card" data-pageid="${result.pageid}"> <div class="card-actions"> <button class="card-action-btn copy-link-btn" title="Copier le lien" onclick="App.copyLinkToClipboard(event, '${pageUrl}')"><i class="fas fa-link"></i></button> <button class="card-action-btn favorite-btn ${isFav ? 'is-favorite' : ''}" title="Ajouter aux favoris" onclick="App.toggleFavorite(${result.pageid}, event)"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></button> </div> <a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><h3 class="result-title">${result.title}</h3></a> <div class="result-snippet">${result.snippet}...</div> <div class="result-meta"> <span class="starlight-score" title="Score de pertinence calculé"><i class="fas fa-star"></i> ${result.starlightScore}</span> <span><i class="fas fa-file-word"></i> ${result.wordcount} mots</span> <span><i class="fas fa-calendar-alt"></i> Maj: ${new Date(result.timestamp).toLocaleDateString('fr-FR')}</span> </div></div>`; };
+    App.renderFavoritesView = function() { const { isLoading, error, results } = this.state.favoritesView; const favArea = this.dom.favoritesArea; this.dom.favoritesStatusDisplay.innerHTML = isLoading ? `<div class="loader"></div>` : (error ? `<div class="status-message">${error}</div>` : ''); if (this.state.favorites.length === 0 && !isLoading) { this.dom.favoritesStatusDisplay.innerHTML = `<div class="status-message">Vous n'avez aucun article favori.</div>`; favArea.innerHTML = ''; return; } if(results.length > 0) favArea.innerHTML = results.map((r, i) => this.createFavoriteCardHTML(r, i)).join(''); };
+    App.createFavoriteCardHTML = function(result, index) { const pageUrl = result.fullurl; return `<div class="result-card" data-pageid="${result.pageid}"> <div class="card-actions"> <button class="card-action-btn copy-link-btn" title="Copier le lien" onclick="App.copyLinkToClipboard(event, '${pageUrl}')"><i class="fas fa-link"></i></button> <button class="card-action-btn favorite-btn is-favorite" title="Retirer des favoris" onclick="App.toggleFavorite(${result.pageid}, event)"><i class="fas fa-heart"></i></button> </div> <a href="${pageUrl}" target="_blank" rel="noopener noreferrer"><h3 class="result-title">${result.title}</h3></a> <div class="result-snippet">${result.extract}</div></div>`; };
+    App.switchView = function(view) { if (this.state.currentView === view) return; this.state.currentView = view; document.querySelectorAll('.view-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view)); document.querySelectorAll('.view-panel').forEach(panel => { panel.style.display = panel.id === view ? 'block' : 'none'; }); if (view === 'favorites-view') { this.dom.favoritesArea.innerHTML = ''; this.fetchFavorites(); } };
+    App.toggleFavorite = function(pageid, event) { event.stopPropagation(); const button = event.currentTarget; const card = button.closest('.result-card'); if (this.isFavorite(pageid)) { this.state.favorites = this.state.favorites.filter(id => id !== pageid); button.classList.remove('is-favorite'); button.innerHTML = '<i class="far fa-heart"></i>'; this.showToast("Retiré des favoris"); if (this.state.currentView === 'favorites-view' && card) { card.classList.add('removing'); setTimeout(() => this.fetchFavorites(), 300); } } else { this.state.favorites.push(pageid); button.classList.add('is-favorite'); button.innerHTML = '<i class="fas fa-heart"></i>'; this.showToast("Ajouté aux favoris"); } this.saveFavorites(); };
+    App.handleInput = function() { if (this.state.search.isSelectingSuggestion) { this.state.search.isSelectingSuggestion = false; return; } this.state.search.activeSuggestionIndex = -1; const query = this.dom.input.value; if (query.startsWith('/')) { this.renderCommandSuggestions(); } else if (query.length > 2) { this.debouncedFetchSuggestions(); } else if(document.activeElement === this.dom.input && query.length === 0) { this.renderSearchHistory(); } else { this.hideDropdown(); } };
+    App.handleFocus = function() { if (this.dom.input.value.length === 0) this.renderSearchHistory(); };
+    App.renderSearchHistory = function(isProximityPreview = false) { if (isProximityPreview && this.dom.dropdownContainer.classList.contains('visible')) return; this.loadSearchHistory(); const container = this.dom.dropdownContainer; if (this.state.searchHistory.length === 0) { this.hideDropdown(); return; } const historyHTML = this.state.searchHistory.map(h => `<div class="dropdown-item" data-suggestion="${h.replace(/'/g, "\\'")}"><i class="fas fa-history"></i><span>${h}</span></div>`).join(''); container.innerHTML = '<div class="dropdown-header">Historique</div>' + historyHTML; container.classList.add('visible'); };
+    App.handleKeydown = function(e) { const container = this.dom.dropdownContainer; if (!container.classList.contains('visible') && e.key !== 'Escape') return; const items = container.querySelectorAll('.dropdown-item'); if (!items.length) { if (e.key === 'Enter') this.hideDropdown(); return; } let { activeSuggestionIndex } = this.state.search; switch(e.key) { case 'ArrowDown': e.preventDefault(); activeSuggestionIndex = (activeSuggestionIndex + 1) % items.length; break; case 'ArrowUp': e.preventDefault(); activeSuggestionIndex = (activeSuggestionIndex - 1 + items.length) % items.length; break; case 'Enter': e.preventDefault(); if (activeSuggestionIndex > -1) this.selectSuggestion(items[activeSuggestionIndex].dataset.suggestion); else this.handleNewSearch(e); return; case 'Escape': this.hideDropdown(); break; default: return; } this.state.search.activeSuggestionIndex = activeSuggestionIndex; items.forEach((item, i) => item.classList.toggle('is-active', i === activeSuggestionIndex)); };
+    App.selectSuggestion = function(suggestion) { this.state.search.isSelectingSuggestion = true; this.dom.input.value = suggestion; this.hideDropdown(); this.handleNewSearch({preventDefault: ()=>{}}); };
+    App.hideDropdown = function() { this.state.search.activeSuggestionIndex = -1; if(this.dom.dropdownContainer) this.dom.dropdownContainer.classList.remove('visible'); };
+    App.generateStarlightScore = function(result, originalQuery) { const title = result.title.toLowerCase(); const snippet = result.snippet.toLowerCase(); const queryWords = [...new Set(originalQuery.toLowerCase().split(' ').filter(w => w.length > 2))]; let score = 0; if (!originalQuery) return 0; queryWords.forEach(word => { if (title.includes(word)) score += 10; if (snippet.includes(word)) score += 2; }); if (title.includes(originalQuery.toLowerCase())) score += 50; if (snippet.includes(originalQuery.toLowerCase())) score += 10; return score; };
+    App.applyClientSideSort = function() { const { sort, results } = this.state.search; if(this.state.search.source !== 'wikipedia') return; switch(sort) { case 'starlight_score_desc': results.sort((a,b) => b.starlightScore - a.starlightScore); break; case 'wordcount_desc': results.sort((a,b) => b.wordcount - a.wordcount); break; case 'wordcount_asc': results.sort((a,b) => a.wordcount - b.wordcount); break; case 'title_asc': results.sort((a,b) => a.title.localeCompare(b.title)); break; case 'title_desc': results.sort((a,b) => b.title.localeCompare(a.title)); break; default: break; } };
+    App.loadFavorites = function() { this.state.favorites = JSON.parse(localStorage.getItem('starlightFavorites') || '[]'); };
+    App.saveFavorites = function() { localStorage.setItem('starlightFavorites', JSON.stringify(this.state.favorites)); };
+    App.loadSearchHistory = function() { this.state.searchHistory = JSON.parse(localStorage.getItem('starlightHistory') || '[]'); };
+    App.saveSearchHistory = function() { const query = this.state.search.query.trim(); if(!query) return; let history = this.state.searchHistory.filter(h => h !== query); history.unshift(query); this.state.searchHistory = history.slice(0, 5); localStorage.setItem('starlightHistory', JSON.stringify(this.state.searchHistory)); };
+    App.loadTheme = function() { const savedTheme = localStorage.getItem('starlightTheme') || 'dark'; this.state.theme = savedTheme; this.applyTheme(); };
+    App.toggleTheme = function() { this.state.theme = this.state.theme === 'light' ? 'dark' : 'light'; localStorage.setItem('starlightTheme', this.state.theme); this.applyTheme(); };
+    App.applyTheme = function() { const isDark = this.state.theme === 'dark'; document.body.classList.toggle('dark-theme', isDark); document.body.classList.toggle('light-theme', !isDark); this.dom.themeIcon.className = isDark ? 'fas fa-moon' : 'fas fa-sun'; };
+    App.isFavorite = function(pageid) { return this.state.favorites.includes(pageid); };
+    App.copyLinkToClipboard = function(event, url) { event.stopPropagation(); const button = event.currentTarget; navigator.clipboard.writeText(url).then(() => { const originalIcon = button.innerHTML; button.innerHTML = '<i class="fas fa-check"></i>'; button.classList.add('copied'); setTimeout(() => { button.innerHTML = originalIcon; button.classList.remove('copied'); }, 1500); }); };
+    App.handleHistorySearch = function(query) { this.dom.input.value = query; this.handleNewSearch({preventDefault: ()=>{}}); };
+    App.fetchFavorites = async function() { this.state.favoritesView.isLoading = true; this.renderFavoritesView(); const pageids = this.state.favorites.join('|'); if(!pageids) { this.state.favoritesView.isLoading = false; this.renderFavoritesView(); return; } const API_URL = `https://fr.wikipedia.org/w/api.php?action=query&prop=info|extracts&inprop=url&exintro&explaintext&utf8=&format=json&origin=*&pageids=${pageids}`; try { const response = await fetch(API_URL); if (!response.ok) throw new Error("Erreur de connexion."); const data = await response.json(); this.state.favoritesView.results = Object.values(data.query.pages); } catch(error) { this.state.favoritesView.error = error.message; } finally { this.state.favoritesView.isLoading = false; this.renderFavoritesView(); } };
+    App.generateResearchSummary = function(results, query) { const topSnippets = results.slice(0, 5).map(r => r.snippet).join(' '); const sentences = topSnippets.replace(/<[^>]+>/g, ' ').match(/[^.!?]+[.!?]+/g) || []; if (sentences.length < 3) return "Pas assez d'informations pour générer une synthèse."; const keywords = Object.keys(results.reduce((acc, result) => { if(result.starlightScore > 0) { const words = result.title.toLowerCase().match(/\b\w{4,}\b/g) || []; words.forEach(w => acc[w] = (acc[w] || 0) + 1); } return acc; }, {})).sort((a,b) => b[1]-a[1]).slice(0,10); const scoredSentences = sentences.map(sentence => { let score = 0; keywords.forEach(kw => { if (sentence.toLowerCase().includes(kw)) score++; }); return { text: sentence.trim(), score }; }).filter(s => s.score > 0); return [...new Map(scoredSentences.sort((a, b) => b.score - a.score).slice(0, 3).map(item => [item.text, item])).values()].map(s => s.text).join(' '); };
+    
+    App.init = function() {
+        this.dom = { app: document.getElementById('app'), mainContent: document.getElementById('main-content'), searchForm: document.getElementById('search-form'), input: document.getElementById('search-input'), searchButton: document.getElementById('search-button'), dropdownContainer: document.getElementById('dropdown-container'), statusDisplay: document.getElementById('status-display'), resultsArea: document.getElementById('results-area'), favoritesArea: document.getElementById('favorites-area'), favoritesStatusDisplay: document.getElementById('favorites-status-display'), controlDock: document.getElementById('control-dock'), themeSwitcher: document.getElementById('theme-switcher'), themeIcon: document.getElementById('theme-icon'), commandBarWrapper: document.getElementById('command-bar-wrapper'), toastContainer: document.getElementById('toast-container'), randomBtn: document.getElementById('random-btn'), }; // Ajout de randomBtn
+        this.debouncedFetchSuggestions = debounce(() => this.fetchSuggestions(), 300);
+        this.loadTheme(); this.loadFavorites(); this.loadSearchHistory();
+        this.dom.searchForm.classList.add('aura-border');
+        this.dom.searchForm.addEventListener('submit', (e) => this.handleNewSearch(e));
+        this.dom.themeSwitcher.addEventListener('click', () => this.toggleTheme());
+        this.dom.randomBtn.addEventListener('click', () => this.fetchRandomAndSearch()); // Ajout du listener
+        this.dom.input.addEventListener('focus', () => this.handleFocus());
+        this.dom.input.addEventListener('input', () => this.handleInput());
+        this.dom.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+        this.dom.dropdownContainer.addEventListener('mousedown', (e) => { const target = e.target.closest('.dropdown-item'); if (target) { e.preventDefault(); this.selectSuggestion(target.dataset.suggestion); } });
+        document.addEventListener('click', (e) => { if (!this.dom.commandBarWrapper.contains(e.target)) this.hideDropdown(); });
+        window.addEventListener('mousemove', (e) => { this.handleMouseGlow(e); this.throttledProximityCheck(e); });
+        this.dom.controlDock.addEventListener('click', (e) => { const target = e.target.closest('.view-btn'); if (target) this.switchView(target.dataset.view); });
+        this.updateSearchBarRect();
+        window.addEventListener('resize', () => this.updateSearchBarRect());
+        console.log("Starlight Aura Final Stable Version Initialized with new features.");
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
+</body>
+</html>
